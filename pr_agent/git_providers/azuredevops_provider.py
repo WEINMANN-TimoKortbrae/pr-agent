@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from urllib.parse import urlparse
 
 from pr_agent.algo.types import EDIT_TYPE, FilePatchInfo
@@ -21,7 +21,7 @@ try:
     # noinspection PyUnresolvedReferences
     from azure.devops.connection import Connection
     # noinspection PyUnresolvedReferences
-    from azure.devops.released.git import (Comment, CommentThread, GitPullRequest, GitVersionDescriptor, GitClient, CommentThreadContext, CommentPosition)
+    from azure.devops.released.git import (CommentThread, GitPullRequest, GitVersionDescriptor, GitClient, CommentThreadContext, CommentPosition)
     from azure.devops.released.work_item_tracking import WorkItemTrackingClient
     # noinspection PyUnresolvedReferences
     from azure.identity import DefaultAzureCredential
@@ -78,7 +78,8 @@ class AzureDevopsProvider(GitProvider):
                 file_path=relevant_file,
                 right_file_start=CommentPosition(offset=1, line=relevant_lines_start),
                 right_file_end=CommentPosition(offset=1, line=relevant_lines_end))
-            comment = Comment(content=body, comment_type=1)
+            # comment = Comment(content=body, comment_type=1)
+            comment = None
             thread = CommentThread(comments=[comment], thread_context=thread_context)
             try:
                 self.azure_devops_client.create_thread(
@@ -91,27 +92,27 @@ class AzureDevopsProvider(GitProvider):
                 get_logger().error(f"Azure failed to publish code suggestion, error: {e}", suggestion=suggestion)
         return True
 
-    def reply_to_comment_from_comment_id(self, comment_id: int, body: str, is_temporary: bool = False) -> Comment:
+    def reply_to_comment_from_comment_id(self, comment_id: int, body: str, is_temporary: bool = False) -> Any:
         # comment_id is actually thread_id
         return self.reply_to_thread(comment_id, body, is_temporary)
 
     def get_pr_description_full(self) -> str:
         return self.pr.description
 
-    def edit_comment(self, comment: Comment, body: str):
+    def edit_comment(self, comment: Any, body: str):
         try:
             self.azure_devops_client.update_comment(
                 repository_id=self.repo_slug,
                 pull_request_id=self.pr_num,
                 thread_id=comment.thread_id,
                 comment_id=comment.id,
-                comment=Comment(content=body),
+                comment=None,
                 project=self.workspace_slug,
             )
         except Exception as e:
             get_logger().exception(f"Failed to edit comment, error: {e}")
 
-    def remove_comment(self, comment: Comment):
+    def remove_comment(self, comment: Any):
         try:
             self.azure_devops_client.delete_comment(
                 repository_id=self.repo_slug,
@@ -346,11 +347,12 @@ class AzureDevopsProvider(GitProvider):
             get_logger().exception(f"Failed to get diff files, error: {e}")
             return []
 
-    def publish_comment(self, pr_comment: str, is_temporary: bool = False, thread_context=None) -> Comment:
+    def publish_comment(self, pr_comment: str, is_temporary: bool = False, thread_context=None) -> Any:
         if is_temporary and not get_settings().config.publish_output_progress:
             get_logger().debug(f"Skipping publish_comment for temporary comment: {pr_comment}")
             return None
-        comment = Comment(content=pr_comment)
+        # comment = Comment(content=pr_comment)
+        comment = None
         thread = CommentThread(comments=[comment], thread_context=thread_context, status="closed")
         thread_response = self.azure_devops_client.create_thread(
             comment_thread=thread,
@@ -497,7 +499,7 @@ class AzureDevopsProvider(GitProvider):
     def get_user_id(self):
         return 0
 
-    def get_issue_comments(self) -> list[Comment]:
+    def get_issue_comments(self) -> list[Any]:
         threads = self.azure_devops_client.get_threads(repository_id=self.repo_slug, pull_request_id=self.pr_num, project=self.workspace_slug)
         threads.reverse()
         comment_list = []
@@ -527,9 +529,10 @@ class AzureDevopsProvider(GitProvider):
         except Exception as e:
             get_logger().exception(f"Failed to set thread status, error: {e}")
             
-    def reply_to_thread(self, thread_id: int, body: str, is_temporary: bool = False) -> Comment:
+    def reply_to_thread(self, thread_id: int, body: str, is_temporary: bool = False) -> Any:
         try:
-            comment = Comment(content=body)
+            # comment = Comment(content=body)
+            comment = None
             response = self.azure_devops_client.create_comment(comment, self.repo_slug, self.pr_num, thread_id, self.workspace_slug)
             response.thread_id = thread_id
             if is_temporary:
